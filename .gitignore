@@ -1,0 +1,8 @@
+# Claude Code project docs
+docs/
+
+# Node tooling (build/test only — not part of the extension bundle)
+node_modules/
+
+# macOS
+.DS_Store

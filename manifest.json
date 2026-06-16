@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "SeeSpan",
+  "version": "0.1.0",
+  "description": "Identifies U.S. members of Congress in C-SPAN program videos and overlays their top campaign contributors and estimated net worth + recent trades.",
+  "permissions": ["activeTab", "storage", "alarms"],
+  "host_permissions": ["*://*.c-span.org/*"],
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["*://*.c-span.org/*"],
+      "js": ["src/loader.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/*.js", "data/*.json"],
+      "matches": ["*://*.c-span.org/*"]
+    }
+  ]
+}

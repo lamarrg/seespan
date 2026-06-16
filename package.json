@@ -1,0 +1,15 @@
+{
+  "name": "seespan",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Build/test tooling for the SeeSpan Chrome extension (not shipped in the extension bundle).",
+  "scripts": {
+    "test": "node --test test/",
+    "build:crosswalk": "node scripts/build-crosswalk.mjs",
+    "smoke": "node scripts/smoke-browser.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^24.43.1"
+  }
+}
