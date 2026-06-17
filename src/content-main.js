@@ -95,7 +95,7 @@ async function main() {
   // Financial datasets: pre-built JSON the extension READS (no live APIs, no
   // user keys). Bundled snapshot in dev; hosted + daily-cached in production
   // (src/datasets.js). Loaded once; speaker lookups are synchronous.
-  const overlay = ensureOverlay();
+  const overlay = ensureOverlay({ anchor: video });
   const [contribData, tradesData] = await Promise.all([
     loadDataset("contributions").catch((e) => {
       console.log(`${TAG} contributions dataset unavailable: ${e.message}`);

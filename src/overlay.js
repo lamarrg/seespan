@@ -92,14 +92,17 @@ const STYLE = `
   .status { color:#9aa0aa; font-style:italic; font-size:12px; padding:2px 0; }
 `;
 
-export function ensureOverlay() {
+// `anchor` (the <video> element) sets the default position: the overlay's
+// top-right corner is placed at the video's top-right corner (a saved drag
+// position takes precedence). Always clamped to the viewport.
+export function ensureOverlay({ anchor = null } = {}) {
   let host = document.getElementById(OVERLAY_ID);
   if (host) return host;
 
   host = document.createElement("div");
   host.id = OVERLAY_ID;
   Object.assign(host.style, {
-    position: "fixed", right: "16px", bottom: "16px",
+    position: "fixed", top: "16px", right: "16px",
     zIndex: "2147483647", width: "300px", maxWidth: "92vw",
   });
   const shadow = host.attachShadow({ mode: "open" });
@@ -117,12 +120,24 @@ export function ensureOverlay() {
     </div>`;
   document.body.appendChild(host);
   wireInteractions(host);
-  restorePrefs(host);
+  restorePrefs(host, anchor);
   return host;
 }
 
 function panel(host) {
   return host.shadowRoot.querySelector(".panel");
+}
+
+// Re-clamp the panel's current position to the viewport (after a size change
+// from expanding, a hover-peek, or a window resize) so the whole panel stays
+// within the visible page.
+function reclamp(host) {
+  const r = host.getBoundingClientRect();
+  if (r.width < 2) return;
+  const { left, top } = clampPosition(
+    r.left, r.top, r.width, r.height, window.innerWidth, window.innerHeight,
+  );
+  Object.assign(host.style, { left: `${left}px`, top: `${top}px`, right: "auto", bottom: "auto" });
 }
 
 function setExpanded(host, expanded, persist = true) {
@@ -142,6 +157,7 @@ function wireInteractions(host) {
   s.querySelector(".toggle").addEventListener("click", (e) => {
     e.stopPropagation();
     setExpanded(host, p.classList.contains("collapsed"));
+    reclamp(host); // expanding may grow past the bottom edge
   });
 
   s.querySelector(".close").addEventListener("click", (e) => {
@@ -153,9 +169,15 @@ function wireInteractions(host) {
   // Hover peek: temporarily reveal the body while collapsed.
   const bar = s.querySelector(".bar");
   p.addEventListener("mouseenter", () => {
-    if (p.classList.contains("collapsed")) p.classList.add("peek");
+    if (p.classList.contains("collapsed")) {
+      p.classList.add("peek");
+      reclamp(host);
+    }
   });
   p.addEventListener("mouseleave", () => p.classList.remove("peek"));
+
+  // Keep the panel on-screen if the window resizes.
+  window.addEventListener("resize", () => reclamp(host));
 
   // Drag to reposition (bar is the handle; ignore button clicks).
   let drag = null;
@@ -179,6 +201,7 @@ function wireInteractions(host) {
     if (!drag) return;
     bar.classList.remove("dragging");
     if (drag.moved) {
+      host.dataset.moved = "1"; // stop auto-snapping to the video
       const r = host.getBoundingClientRect();
       savePrefs({ left: r.left, top: r.top });
     }
@@ -186,17 +209,64 @@ function wireInteractions(host) {
   });
 }
 
-async function restorePrefs(host) {
+const ANCHOR_MARGIN = 12;
+
+function place(host, left, top) {
+  const c = clampPosition(
+    left, top, host.offsetWidth || 300, host.offsetHeight || 60,
+    window.innerWidth, window.innerHeight,
+  );
+  Object.assign(host.style, { left: `${c.left}px`, top: `${c.top}px`, right: "auto", bottom: "auto" });
+}
+
+// Place the overlay's top-right corner at the anchor's (video's) top-right.
+// Returns false if the anchor has no layout yet.
+function snapToAnchor(host, anchor) {
+  const r = anchor.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return false;
+  place(host, r.right - (host.offsetWidth || 300) - ANCHOR_MARGIN, r.top + ANCHOR_MARGIN);
+  return true;
+}
+
+function inViewport(el) {
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 && r.top < window.innerHeight && r.bottom > 0;
+}
+
+// The C-SPAN player usually loads below the fold, so the "top-right of video"
+// default can't apply until the user scrolls to it. Snap there the first time
+// the video is on-screen — unless the user has moved or dismissed the panel.
+function snapWhenAnchorVisible(host, anchor) {
+  if (typeof IntersectionObserver === "undefined") return;
+  const io = new IntersectionObserver((entries, obs) => {
+    if (host.dataset.moved === "1" || host.dataset.dismissed === "1") return obs.disconnect();
+    if (entries.some((e) => e.isIntersecting)) {
+      snapToAnchor(host, anchor);
+      obs.disconnect();
+    }
+  }, { threshold: 0.01 });
+  io.observe(anchor);
+}
+
+async function restorePrefs(host, anchor) {
   const prefs = await loadPrefs();
-  if (typeof prefs.left === "number" && typeof prefs.top === "number") {
-    const { left, top } = clampPosition(
-      prefs.left, prefs.top, host.offsetWidth || 300, host.offsetHeight || 60,
-      window.innerWidth, window.innerHeight,
-    );
-    Object.assign(host.style, { left: `${left}px`, top: `${top}px`, right: "auto", bottom: "auto" });
-  }
   // Default collapsed (glanceable); honor a saved expanded preference.
   setExpanded(host, prefs.collapsed === false, false);
+
+  if (typeof prefs.left === "number" && typeof prefs.top === "number") {
+    place(host, prefs.left, prefs.top); // saved drag position wins
+    host.dataset.moved = "1"; // don't auto-snap over it
+    return;
+  }
+
+  // Default: top-right of the video. If the video is off-screen (below the
+  // fold), park top-right of the viewport and snap once it scrolls into view.
+  if (anchor && inViewport(anchor)) {
+    snapToAnchor(host, anchor);
+  } else {
+    place(host, window.innerWidth - (host.offsetWidth || 300) - 16, 16);
+  }
+  if (anchor) snapWhenAnchorVisible(host, anchor);
 }
 
 // ---- render (called by content-main on speaker change) ---------------------
