@@ -44,13 +44,22 @@ test("recentTrades returns up to N, [] for unknown/null", () => {
   assert.equal(recentTrades(idx, null).length, 0);
 });
 
-test("real data/trades.json seed parses + indexes", async () => {
+test("real data/trades.json parses + indexes (House + Senate)", async () => {
   const data = JSON.parse(await readFile(dataPath, "utf8"));
-  assert.ok(Array.isArray(data.trades) && data.trades.length > 0);
+  assert.ok(Array.isArray(data.trades) && data.trades.length > 100, "full file, not a seed");
   const idx = indexTrades(data);
-  assert.ok(idx.size > 0, "has bioguide-resolved members");
-  const fetterman = idx.get("F000479");
-  assert.ok(fetterman && fetterman.length, "Fetterman (F000479) present");
-  assert.ok(fetterman.some((t) => t.ticker === "EXPE"), "Fetterman bought EXPE");
-  console.log(`[seed] trades.json: ${data.trades.length} trades, ${idx.size} members`);
+  assert.ok(idx.size >= 50, "many bioguide-resolved members");
+
+  // every trade is keyed and keeps its amount as a disclosed range (§7 honesty)
+  for (const t of data.trades) {
+    assert.ok(t.bioguide_id, "trade keyed by bioguide");
+    assert.ok(typeof t.amount_range === "string" && t.amount_range.includes("$"), "amount is a range string");
+    assert.ok(["purchase", "sale", "exchange"].includes(t.type), "known transaction type");
+  }
+  // both chambers represented (Senate filings come from efdsearch.senate.gov)
+  const hasSenate = data.trades.some((t) => /efdsearch\.senate\.gov/.test(t.source_url));
+  const hasHouse = data.trades.some((t) => /disclosures-clerk\.house\.gov/.test(t.source_url));
+  assert.ok(hasSenate, "includes Senate eFD trades");
+  assert.ok(hasHouse, "includes House Clerk trades");
+  console.log(`[data] trades.json: ${data.trades.length} trades, ${idx.size} members`);
 });
