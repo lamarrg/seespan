@@ -1,6 +1,9 @@
 # Claude Code project docs
 docs/
 
+# Secrets — local API keys for the data builders (never commit)
+.env
+
 # Node tooling (build/test only — not part of the extension bundle)
 node_modules/
 
