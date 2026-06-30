@@ -27,28 +27,6 @@ export const SAMPLE_REFERER =
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// FEC's free demo key — real API, low rate limit (~30/hr). Fine for a couple of
-// live test calls; the extension itself needs a real api.data.gov key.
-export const FEC_DEMO_KEY = "DEMO_KEY";
-
-// Live candidate→committee→top-contributors, retry/skip on rate-limit. Returns
-// null when the FEC API is confirmed unavailable (caller should t.skip).
-export async function fecContributorsOrNull(candidateId, tries = 2) {
-  const { getContributorsForCandidate } = await import("../src/fec.js");
-  for (let i = 0; i < tries; i++) {
-    try {
-      return await getContributorsForCandidate(candidateId, { apiKey: FEC_DEMO_KEY });
-    } catch (err) {
-      if (i === tries - 1) {
-        console.log(`[live] FEC unavailable after ${tries} tries: ${err.message}`);
-        return null;
-      }
-      await sleep(2000 * (i + 1));
-    }
-  }
-  return null;
-}
-
 // Fetch the sample transcript from the LIVE API with retry/backoff. C-SPAN's
 // CDN intermittently throttles (empty 202 / 403) under repeated automated hits.
 // Returns the parsed result, or null if the API is confirmed unavailable after

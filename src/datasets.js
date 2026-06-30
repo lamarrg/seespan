@@ -9,7 +9,7 @@
 
 import { createCache, chromeStorageStore } from "./cache.js";
 
-const HOSTED_BASE_URL = ""; // e.g. "https://your-site.example/data"
+const HOSTED_BASE_URL = "https://cdn.jsdelivr.net/gh/lamarrg/seespan-data@main/data";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const cache = createCache({ store: chromeStorageStore(), ttlMs: DAY_MS });
