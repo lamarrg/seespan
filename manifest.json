@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Identifies U.S. members of Congress in C-SPAN program videos and overlays their top campaign contributors and estimated net worth + recent trades.",
   "permissions": ["activeTab", "storage", "alarms"],
-  "host_permissions": ["*://*.c-span.org/*"],
+  "host_permissions": ["*://*.c-span.org/*", "https://cdn.jsdelivr.net/*"],
   "options_page": "options.html",
   "content_scripts": [
     {
